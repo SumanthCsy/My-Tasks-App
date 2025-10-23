@@ -33,10 +33,35 @@ export default function Login() {
 
     setLoading(true);
     try {
-      // Check if it's admin credentials
+      // Check if it's admin credentials - try to create admin account first
       if (email === 'admin@mytasks.com' && password === 'mytasks@admin') {
-        // Create admin account if it doesn't exist
-        await createAdminAccount();
+        try {
+          // Try to create admin account with Firebase Auth
+          const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
+          const { setDoc, doc } = await import('firebase/firestore');
+          
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          
+          await updateProfile(userCredential.user, {
+            displayName: 'Sumanth Csy'
+          });
+
+          const adminData = {
+            uid: userCredential.user.uid,
+            email: 'admin@mytasks.com',
+            name: 'Sumanth Csy',
+            role: 'admin',
+            isBlocked: false,
+            premiumAccess: true,
+          };
+
+          await setDoc(doc(db, 'users', userCredential.user.uid), adminData);
+        } catch (createError: any) {
+          // Account already exists, proceed with login
+          if (createError.code !== 'auth/email-already-in-use') {
+            throw createError;
+          }
+        }
       }
       
       await login(email, password);
@@ -45,22 +70,6 @@ export default function Login() {
       Alert.alert('Login Failed', error.message || 'Invalid credentials');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const createAdminAccount = async () => {
-    try {
-      // This will be created on first login
-      const adminData = {
-        uid: 'admin',
-        email: 'admin@mytasks.com',
-        name: 'Sumanth Csy',
-        role: 'admin',
-        isBlocked: false,
-        premiumAccess: true,
-      };
-    } catch (error) {
-      console.log('Admin account handling:', error);
     }
   };
 
