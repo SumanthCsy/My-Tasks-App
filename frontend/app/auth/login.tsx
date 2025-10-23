@@ -15,8 +15,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,43 +33,31 @@ export default function Login() {
 
     setLoading(true);
     try {
-      // Check if it's admin credentials - try to create admin account first
-      if (email === 'admin@mytasks.com' && password === 'mytasks@admin') {
-        try {
-          // Try to create admin account with Firebase Auth
-          const { createUserWithEmailAndPassword, updateProfile } = await import('firebase/auth');
-          const { setDoc, doc } = await import('firebase/firestore');
-          
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          
-          await updateProfile(userCredential.user, {
-            displayName: 'Sumanth Csy'
-          });
-
-          const adminData = {
-            uid: userCredential.user.uid,
-            email: 'admin@mytasks.com',
-            name: 'Sumanth Csy',
-            role: 'admin',
-            isBlocked: false,
-            premiumAccess: true,
-          };
-
-          await setDoc(doc(db, 'users', userCredential.user.uid), adminData);
-        } catch (createError: any) {
-          // Account already exists, proceed with login
-          if (createError.code !== 'auth/email-already-in-use') {
-            throw createError;
-          }
-        }
-      }
-      
       await login(email, password);
-      // Navigation is handled by the auth context
+      // Navigation is handled by the auth context and index.tsx
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message || 'Invalid credentials');
+      console.error('Login error:', error);
+      Alert.alert('Login Failed', error.message || 'Invalid credentials. Please check your email and password.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Email Required', 'Please enter your email address first');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        'Password Reset Email Sent',
+        'Please check your email for password reset instructions.'
+      );
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      Alert.alert('Error', error.message || 'Failed to send password reset email');
     }
   };
 
@@ -83,6 +71,10 @@ export default function Login() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+
           <View style={styles.header}>
             <Ionicons name="checkmark-circle" size={80} color="#fff" />
             <Text style={styles.title}>Welcome Back</Text>
@@ -115,6 +107,10 @@ export default function Login() {
               />
             </View>
 
+            <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordButton}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.loginButton}
               onPress={handleLogin}
@@ -140,6 +136,12 @@ export default function Login() {
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
             </View>
+
+            <View style={styles.adminHint}>
+              <Text style={styles.adminHintText}>Admin credentials:</Text>
+              <Text style={styles.adminCredentials}>Email: admin@mytasks.com</Text>
+              <Text style={styles.adminCredentials}>Password: mytasks@admin</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -158,6 +160,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
   },
   header: {
     alignItems: 'center',
@@ -196,6 +204,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingVertical: 15,
   },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+  },
+  forgotPasswordText: {
+    color: '#667eea',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   loginButton: {
     borderRadius: 15,
     overflow: 'hidden',
@@ -224,5 +241,24 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  adminHint: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 126, 234, 0.3)',
+  },
+  adminHintText: {
+    color: '#667eea',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  adminCredentials: {
+    color: '#999',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
