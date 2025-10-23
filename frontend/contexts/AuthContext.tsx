@@ -57,6 +57,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
+    // Check if it's admin trying to login for first time
+    if (email === 'admin@mytasks.com' && password === 'mytasks@admin') {
+      try {
+        // Try to create admin account
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
+        await updateProfile(userCredential.user, {
+          displayName: 'Sumanth Csy'
+        });
+
+        const adminData: UserData = {
+          uid: userCredential.user.uid,
+          email: 'admin@mytasks.com',
+          name: 'Sumanth Csy',
+          role: 'admin',
+          isBlocked: false,
+          premiumAccess: true,
+        };
+
+        await setDoc(doc(db, 'users', userCredential.user.uid), adminData);
+        setUserData(adminData);
+        return;
+      } catch (createError: any) {
+        // If account already exists, continue with normal login
+        if (createError.code !== 'auth/email-already-in-use') {
+          throw createError;
+        }
+      }
+    }
+
+    // Normal login
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
     
@@ -67,6 +98,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Your account has been blocked. Please contact admin.');
       }
       setUserData(data);
+    } else {
+      // If user document doesn't exist, create it
+      const userData: UserData = {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email || '',
+        name: userCredential.user.displayName || 'User',
+        role: 'user',
+        isBlocked: false,
+        premiumAccess: false,
+      };
+      await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+      setUserData(userData);
     }
   };
 
