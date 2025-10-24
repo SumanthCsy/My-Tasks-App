@@ -1,0 +1,15 @@
+AppData/
+*.tmp
+*.klog
+*.log
+node_modules/
+.expo/
+.yarn/
+.cache/
+.DS_Store
+*.apk
+*.aab
+dist/
+build/
+android/
+ios/

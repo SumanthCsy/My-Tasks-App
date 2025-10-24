@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4b562b23-11b4-49c7-829e-5305b90174e5"
+      }
+    },
+    "android": {
+      "package": "com.mytasks.app"
+    }
+  }
+}

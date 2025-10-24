@@ -1,0 +1,233 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  BackHandler,
+  Platform,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { useDialog } from '../../utils/DialogManager';
+
+export default function AdminProfile() {
+  const { userData, logout } = useAuth();
+  const router = useRouter();
+  const { showEditProfileDialog, showChangePasswordDialog, showNotificationDialog, showLogoutConfirmationDialog } = useDialog();
+  
+  // Handle back button press
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only add BackHandler event listener on native platforms
+      if (Platform.OS !== 'web') {
+        BackHandler.addEventListener('hardwareBackPress', () => false);
+        return () => {
+          BackHandler.removeEventListener('hardwareBackPress', () => false);
+        };
+      }
+      return undefined;
+    }, [])
+  );
+
+  const handleLogout = () => {
+    showLogoutConfirmationDialog(async () => {
+      await logout();
+      router.replace('/auth/login');
+    });
+  };
+
+  return (
+    <LinearGradient colors={['#0f0c29', '#302b63', '#24243e']} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileHeader}>
+          {userData?.photoURL ? (
+            <Image source={{ uri: userData.photoURL }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={60} color="#999" />
+            </View>
+          )}
+          <Text style={styles.name}>{userData?.name}</Text>
+          <Text style={styles.email}>{userData?.email}</Text>
+          <View style={styles.roleBadge}>
+            <Ionicons name="shield-checkmark" size={16} color="#ffd700" />
+            <Text style={styles.roleText}>Admin</Text>
+          </View>
+        </View>
+
+        <View style={styles.menuSection}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              showEditProfileDialog(userData, () => {
+                // Refresh the page or update the UI after successful profile update
+                router.replace('/admin/profile');
+              });
+            }}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="person-outline" size={24} color="#667eea" />
+              <Text style={styles.menuItemText}>Edit Profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              showChangePasswordDialog();
+            }}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="lock-closed-outline" size={24} color="#667eea" />
+              <Text style={styles.menuItemText}>Change Password</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#999" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              showNotificationDialog('Admin Settings', 'Configure application settings, notification preferences, and system parameters.');
+            }}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="settings-outline" size={24} color="#667eea" />
+              <Text style={styles.menuItemText}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#999" />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <LinearGradient
+            colors={['#ff6b6b', '#ee5a6f']}
+            style={styles.gradientButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="log-out-outline" size={24} color="#fff" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Designed & Developed By ❤️ Sumanth Csy</Text>
+          <Text style={styles.versionText}>Version 1.0.0</Text>
+        </View>
+      </ScrollView>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 15,
+  },
+  avatarPlaceholder: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  email: {
+    fontSize: 16,
+    color: '#999',
+    marginBottom: 10,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  roleText: {
+    color: '#ffd700',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 5,
+  },
+  menuSection: {
+    marginBottom: 30,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuItemText: {
+    color: '#fff',
+    fontSize: 16,
+    marginLeft: 15,
+  },
+  logoutButton: {
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginBottom: 30,
+  },
+  gradientButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  footerText: {
+    color: '#999',
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  versionText: {
+    color: '#666',
+    fontSize: 12,
+  },
+});
