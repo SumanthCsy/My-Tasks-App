@@ -6,7 +6,21 @@
       }
     },
     "android": {
-      "package": "com.mytasks.app"
-    }
+      "package": "com.mytasks.app",
+      "buildNumber": "1.0.0"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 33,
+            "targetSdkVersion": 33,
+            "buildToolsVersion": "33.0.0",
+            "kotlinVersion": "1.8.0"
+          }
+        }
+      ]
+    ]
   }
 }
