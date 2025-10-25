@@ -9,11 +9,14 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRouter } from 'expo-router';
+import SoundManager from '../../utils/SoundManager';
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const { userData } = useAuth();
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -29,14 +32,24 @@ export default function AdminDashboard() {
 
   const loadStats = async () => {
     try {
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const coursesSnap = await getDocs(collection(db, 'courses'));
-      const categoriesSnap = await getDocs(collection(db, 'categories'));
+      // Use Promise.all to fetch all collections in parallel for better performance
+      const [usersSnap, coursesSnap, categoriesSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'courses')),
+        getDocs(collection(db, 'categories'))
+      ]);
 
+      // Calculate active users (not blocked)
       const activeUsers = usersSnap.docs.filter(
-        (doc) => !doc.data().isBlocked
+        (doc) => doc.data() && !doc.data().isBlocked
       ).length;
 
+      console.log('Stats loaded:', {
+        users: usersSnap.size,
+        courses: coursesSnap.size,
+        categories: categoriesSnap.size
+      });
+      
       setStats({
         totalUsers: usersSnap.size,
         totalCourses: coursesSnap.size,
@@ -126,25 +139,66 @@ export default function AdminDashboard() {
         <View style={styles.quickActions}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsList}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/admin/courses/add')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="add-circle" size={30} color="#667eea" />
               </View>
               <Text style={styles.actionText}>Add Course</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/admin/categories/add')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="folder-open" size={30} color="#667eea" />
               </View>
               <Text style={styles.actionText}>Add Category</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/admin/users')}
+            >
               <View style={styles.actionIcon}>
                 <Ionicons name="people-outline" size={30} color="#667eea" />
               </View>
               <Text style={styles.actionText}>Manage Users</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/admin/tasks')}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="list" size={30} color="#667eea" />
+              </View>
+              <Text style={styles.actionText}>Manage Tasks</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={async () => {
+                try {
+                  // Play notification sound and send notification
+                  await SoundManager.playNotificationSound();
+                  await SoundManager.sendNotification(
+                    'Task Reminder',
+                    'You have pending tasks to complete!',
+                    { type: 'task_reminder' }
+                  );
+                } catch (error) {
+                  console.error('Error sending notification:', error);
+                }
+              }}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="notifications" size={30} color="#667eea" />
+              </View>
+              <Text style={styles.actionText}>Send Reminder</Text>
             </TouchableOpacity>
           </View>
         </View>

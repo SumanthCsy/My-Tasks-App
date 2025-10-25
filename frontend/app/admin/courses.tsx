@@ -12,8 +12,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { useRouter } from 'expo-router';
 
 interface Category {
   id: string;
@@ -32,15 +33,19 @@ interface Course {
 }
 
 export default function AdminCourses() {
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
+  const [showEditCourseModal, setShowEditCourseModal] = useState(false);
 
   // Category form
   const [categoryName, setCategoryName] = useState('');
   const [categoryIcon, setCategoryIcon] = useState('folder');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   // Course form
   const [courseTitle, setCourseTitle] = useState('');
@@ -49,6 +54,7 @@ export default function AdminCourses() {
   const [isProgramming, setIsProgramming] = useState(false);
   const [programmingLanguage, setProgrammingLanguage] = useState('');
   const [isPremium, setIsPremium] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
   const programmingLanguages = [
     'C',
@@ -110,6 +116,65 @@ export default function AdminCourses() {
     }
   };
 
+  const handleEditCategory = async () => {
+    if (!editingCategory || !categoryName) {
+      Alert.alert('Error', 'Please enter category name');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'categories', editingCategory.id), {
+        name: categoryName,
+        icon: categoryIcon,
+        updatedAt: new Date().toISOString(),
+      });
+      Alert.alert('Success', 'Category updated successfully');
+      setCategoryName('');
+      setCategoryIcon('folder');
+      setEditingCategory(null);
+      setShowEditCategoryModal(false);
+      loadData();
+    } catch (error) {
+      console.error('Error updating category:', error);
+      Alert.alert('Error', 'Failed to update category');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    // Check if there are courses using this category
+    const coursesWithCategory = courses.filter(course => course.categoryId === categoryId);
+    
+    if (coursesWithCategory.length > 0) {
+      Alert.alert(
+        'Cannot Delete',
+        'This category has courses assigned to it. Please reassign or delete those courses first.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this category?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'categories', categoryId));
+              Alert.alert('Success', 'Category deleted successfully');
+              loadData();
+            } catch (error) {
+              console.error('Error deleting category:', error);
+              Alert.alert('Error', 'Failed to delete category');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleAddCourse = async () => {
     if (!courseTitle || !courseDescription || !selectedCategory) {
       Alert.alert('Error', 'Please fill all required fields');
@@ -141,6 +206,62 @@ export default function AdminCourses() {
     }
   };
 
+  const handleEditCourse = async () => {
+    if (!editingCourse || !courseTitle || !courseDescription || !selectedCategory) {
+      Alert.alert('Error', 'Please fill all required fields');
+      return;
+    }
+
+    if (isProgramming && !programmingLanguage) {
+      Alert.alert('Error', 'Please select a programming language');
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'courses', editingCourse.id), {
+        title: courseTitle,
+        description: courseDescription,
+        categoryId: selectedCategory,
+        isProgramming,
+        language: isProgramming ? programmingLanguage : null,
+        premium: isPremium,
+        updatedAt: new Date().toISOString(),
+      });
+      Alert.alert('Success', 'Course updated successfully');
+      resetCourseForm();
+      setEditingCourse(null);
+      setShowEditCourseModal(false);
+      loadData();
+    } catch (error) {
+      console.error('Error updating course:', error);
+      Alert.alert('Error', 'Failed to update course');
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this course? This will also delete all associated tasks.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'courses', courseId));
+              Alert.alert('Success', 'Course deleted successfully');
+              loadData();
+            } catch (error) {
+              console.error('Error deleting course:', error);
+              Alert.alert('Error', 'Failed to delete course');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const resetCourseForm = () => {
     setCourseTitle('');
     setCourseDescription('');
@@ -148,6 +269,24 @@ export default function AdminCourses() {
     setIsProgramming(false);
     setProgrammingLanguage('');
     setIsPremium(false);
+  };
+
+  const openEditCategoryModal = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryName(category.name);
+    setCategoryIcon(category.icon);
+    setShowEditCategoryModal(true);
+  };
+
+  const openEditCourseModal = (course: Course) => {
+    setEditingCourse(course);
+    setCourseTitle(course.title);
+    setCourseDescription(course.description);
+    setSelectedCategory(course.categoryId);
+    setIsProgramming(course.isProgramming);
+    setProgrammingLanguage(course.language || '');
+    setIsPremium(course.premium);
+    setShowEditCourseModal(true);
   };
 
   if (loading) {
@@ -177,6 +316,20 @@ export default function AdminCourses() {
               <View key={category.id} style={styles.categoryCard}>
                 <Ionicons name={category.icon as any} size={24} color="#667eea" />
                 <Text style={styles.categoryName}>{category.name}</Text>
+                <View style={styles.categoryActions}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => openEditCategoryModal(category)}
+                  >
+                    <Ionicons name="pencil" size={16} color="#667eea" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteCategory(category.id)}
+                  >
+                    <Ionicons name="trash" size={16} color="#ff6b6b" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
@@ -212,6 +365,26 @@ export default function AdminCourses() {
                     </View>
                   )}
                 </View>
+              </View>
+              <View style={styles.courseActions}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => openEditCourseModal(course)}
+                >
+                  <Ionicons name="pencil" size={18} color="#667eea" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.deleteButton]}
+                  onPress={() => handleDeleteCourse(course.id)}
+                >
+                  <Ionicons name="trash" size={18} color="#ff6b6b" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.tasksButton]}
+                  onPress={() => router.push('/admin/tasks')}
+                >
+                  <Ionicons name="list" size={18} color="#667eea" />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -358,6 +531,153 @@ export default function AdminCourses() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Edit Category Modal */}
+      <Modal visible={showEditCategoryModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Category</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Category Name"
+              placeholderTextColor="#999"
+              value={categoryName}
+              onChangeText={setCategoryName}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowEditCategoryModal(false);
+                  setEditingCategory(null);
+                  setCategoryName('');
+                  setCategoryIcon('folder');
+                }}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={handleEditCategory}>
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  style={styles.gradientButton}
+                >
+                  <Text style={styles.buttonText}>Save</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Course Modal */}
+      <Modal visible={showEditCourseModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Edit Course</Text>
+              
+              <TextInput
+                style={styles.input}
+                placeholder="Course Title"
+                placeholderTextColor="#999"
+                value={courseTitle}
+                onChangeText={setCourseTitle}
+              />
+              
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Course Description"
+                placeholderTextColor="#999"
+                value={courseDescription}
+                onChangeText={setCourseDescription}
+                multiline
+                numberOfLines={4}
+              />
+
+              <Text style={styles.label}>Select Category:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryOption,
+                      selectedCategory === cat.id && styles.selectedCategory,
+                    ]}
+                    onPress={() => setSelectedCategory(cat.id)}
+                  >
+                    <Text style={styles.categoryOptionText}>{cat.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setIsProgramming(!isProgramming)}
+              >
+                <Ionicons
+                  name={isProgramming ? 'checkbox' : 'square-outline'}
+                  size={24}
+                  color="#667eea"
+                />
+                <Text style={styles.checkboxLabel}>Programming Course</Text>
+              </TouchableOpacity>
+
+              {isProgramming && (
+                <View>
+                  <Text style={styles.label}>Select Language:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {programmingLanguages.map((lang) => (
+                      <TouchableOpacity
+                        key={lang}
+                        style={[
+                          styles.languageOption,
+                          programmingLanguage === lang && styles.selectedLanguage,
+                        ]}
+                        onPress={() => setProgrammingLanguage(lang)}
+                      >
+                        <Text style={styles.languageText}>{lang}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => setIsPremium(!isPremium)}
+              >
+                <Ionicons
+                  name={isPremium ? 'checkbox' : 'square-outline'}
+                  size={24}
+                  color="#ffd700"
+                />
+                <Text style={styles.checkboxLabel}>Premium Course</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => {
+                    setShowEditCourseModal(false);
+                    setEditingCourse(null);
+                    resetCourseForm();
+                  }}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalButton} onPress={handleEditCourse}>
+                  <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.gradientButton}
+                  >
+                    <Text style={styles.buttonText}>Save Changes</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -400,6 +720,13 @@ const styles = StyleSheet.create({
     minWidth: 100,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    position: 'relative',
+  },
+  categoryActions: {
+    flexDirection: 'row',
+    position: 'absolute',
+    top: 5,
+    right: 5,
   },
   categoryName: {
     color: '#fff',
@@ -413,6 +740,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   courseInfo: {
     flex: 1,
@@ -447,6 +776,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     marginLeft: 4,
+  },
+  courseActions: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  },
+  tasksButton: {
+    backgroundColor: 'rgba(102, 126, 234, 0.1)',
   },
   modalOverlay: {
     flex: 1,

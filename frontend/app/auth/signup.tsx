@@ -17,6 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useBackHandler } from '../../utils/useBackHandler';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -27,6 +28,14 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
   const router = useRouter();
+
+  // Handle back button - go to home screen
+  useBackHandler({
+    onBack: () => {
+      router.push('/');
+      return true;
+    }
+  });
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -87,6 +96,11 @@ export default function Signup() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
+            <Image 
+              source={require('../../public/taskslogo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Join us and start learning</Text>
           </View>
@@ -172,7 +186,7 @@ export default function Signup() {
 
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.back()}>
+              <TouchableOpacity onPress={() => router.push('/auth/login')}>
                 <Text style={styles.loginLink}>Login</Text>
               </TouchableOpacity>
             </View>
@@ -284,5 +298,10 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 20,
   },
 });

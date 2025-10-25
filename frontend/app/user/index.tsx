@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
@@ -30,11 +30,21 @@ interface Course {
   premium: boolean;
 }
 
+interface CourseProgress {
+  courseId: string;
+  userId: string;
+  completed: boolean;
+  progress: number;
+  tasksCompleted: number;
+  totalTasks: number;
+}
+
 export default function UserDashboard() {
   const { userData } = useAuth();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [courseProgress, setCourseProgress] = useState<{ [key: string]: CourseProgress }>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,12 +65,24 @@ export default function UserDashboard() {
         id: doc.id,
         ...doc.data(),
       })) as Course[];
-      
+
       // Filter courses based on premium access
       const filteredCourses = coursesData.filter(
         (course) => !course.premium || userData?.premiumAccess
       );
       setCourses(filteredCourses);
+
+      // Load course progress for each course
+      const progressData: { [key: string]: CourseProgress } = {};
+      if (userData) {
+        for (const course of filteredCourses) {
+          const progressDoc = await getDoc(doc(db, 'courseProgress', `${userData.uid}_${course.id}`));
+          if (progressDoc.exists()) {
+            progressData[course.id] = progressDoc.data() as CourseProgress;
+          }
+        }
+      }
+      setCourseProgress(progressData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -142,7 +164,12 @@ export default function UserDashboard() {
                       <Text style={styles.courseDescription} numberOfLines={2}>
                         {course.description}
                       </Text>
-                      <TouchableOpacity style={styles.startButton}>
+                      <TouchableOpacity
+                        style={styles.startButton}
+                        onPress={() => {
+                          router.push(`/courses/${course.id}`);
+                        }}
+                      >
                         <Text style={styles.startButtonText}>Start Learning</Text>
                         <Ionicons name="arrow-forward" size={16} color="#fff" />
                       </TouchableOpacity>

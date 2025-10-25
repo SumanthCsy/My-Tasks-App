@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +21,13 @@ export default function Home() {
     }
   }, [user, userData]);
 
+  // Handle explore courses navigation
   const handleExploreCourses = () => {
-    router.push('/courses/explore');
+    if (user && userData) {
+      router.push('/courses/explore');
+    } else {
+      router.push('/auth/login');
+    }
   };
 
   return (
@@ -44,10 +49,11 @@ export default function Home() {
         {/* Hero Section with New Logo */}
         <View style={styles.heroSection}>
           <View style={styles.logoContainer}>
-            <View style={styles.logo}>
-              <Ionicons name="checkmark-circle" size={40} color="#667eea" />
-              <Ionicons name="code-slash" size={40} color="#f093fb" style={styles.techIcon} />
-            </View>
+            <Image 
+              source={require('../public/taskslogo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.title}>My Task</Text>
           <Text style={styles.tagline}>Your Personal Learning Companion</Text>
@@ -142,8 +148,11 @@ export default function Home() {
               {/* Sidebar Header */}
               <View style={styles.sidebarHeader}>
                 <View style={styles.sidebarLogo}>
-                  <Ionicons name="checkmark-circle" size={30} color="#667eea" />
-                  <Ionicons name="code-slash" size={30} color="#f093fb" />
+                  <Image 
+                    source={require('../public/taskslogo.png')} 
+                    style={styles.sidebarLogoImage}
+                    resizeMode="contain"
+                  />
                 </View>
                 <Text style={styles.sidebarTitle}>My Task</Text>
                 <TouchableOpacity 
@@ -373,5 +382,13 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     marginVertical: 10,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+  },
+  sidebarLogoImage: {
+    width: 60,
+    height: 60,
   },
 });

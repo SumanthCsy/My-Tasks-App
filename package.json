@@ -9,18 +9,20 @@
     "build": "expo build:web"
   },
   "dependencies": {
+    "@types/react": "~18.0.27",
     "expo": "~48.0.21",
     "expo-av": "~13.0.2",
     "expo-camera": "~13.2.0",
     "expo-dev-client": "~2.0.1",
     "expo-media-library": "~14.1.0",
     "expo-notifications": "~0.18.1",
+    "expo-splash-screen": "~0.18.2",
+    "expo-status-bar": "~1.6.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-native": "0.71.14",
     "react-native-web": "~0.18.12",
-    "expo-splash-screen": "~0.18.2",
-    "expo-status-bar": "~1.6.0"
+    "typescript": "^4.9.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRouter } from 'expo-router';
 
 interface Task {
   id: string;
@@ -31,10 +33,22 @@ interface Course {
   premium: boolean;
 }
 
+interface CourseProgress {
+  courseId: string;
+  userId: string;
+  completed: boolean;
+  completedAt?: string;
+  progress: number;
+  tasksCompleted: number;
+  totalTasks: number;
+}
+
 export default function MyCourses() {
   const { userData } = useAuth();
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [tasks, setTasks] = useState<{ [key: string]: Task[] }>({});
+  const [courseProgress, setCourseProgress] = useState<{ [key: string]: CourseProgress }>({});
   const [loading, setLoading] = useState(true);
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
@@ -58,6 +72,8 @@ export default function MyCourses() {
 
       // Load tasks for each course
       const tasksData: { [key: string]: Task[] } = {};
+      const progressData: { [key: string]: CourseProgress } = {};
+      
       for (const course of filteredCourses) {
         const tasksSnap = await getDocs(
           query(collection(db, 'tasks'), where('courseId', '==', course.id))
@@ -66,8 +82,17 @@ export default function MyCourses() {
           id: doc.id,
           ...doc.data(),
         })) as Task[];
+
+        // Load course progress
+        if (userData) {
+          const progressDoc = await getDoc(doc(db, 'courseProgress', `${userData.uid}_${course.id}`));
+          if (progressDoc.exists()) {
+            progressData[course.id] = progressDoc.data() as CourseProgress;
+          }
+        }
       }
       setTasks(tasksData);
+      setCourseProgress(progressData);
     } catch (error) {
       console.error('Error loading courses:', error);
       Alert.alert('Error', 'Failed to load courses');
@@ -91,8 +116,17 @@ export default function MyCourses() {
   return (
     <LinearGradient colors={['#0f0c29', '#302b63', '#24243e']} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>My Courses</Text>
-        <Text style={styles.subtitle}>{courses.length} courses available</Text>
+        <View style={styles.header}>
+          <Image 
+            source={require('../../public/taskslogo.png')} 
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>My Courses</Text>
+            <Text style={styles.subtitle}>{courses.length} courses available</Text>
+          </View>
+        </View>
 
         {courses.length === 0 ? (
           <View style={styles.emptyState}>
@@ -100,36 +134,80 @@ export default function MyCourses() {
             <Text style={styles.emptyText}>No courses available yet</Text>
           </View>
         ) : (
-          courses.map((course) => (
-            <View key={course.id} style={styles.courseCard}>
-              <TouchableOpacity
-                style={styles.courseHeader}
-                onPress={() => toggleCourse(course.id)}
-              >
-                <View style={styles.courseInfo}>
-                  <Text style={styles.courseTitle}>{course.title}</Text>
-                  <Text style={styles.courseDescription}>{course.description}</Text>
-                  <View style={styles.badges}>
-                    {course.isProgramming && (
-                      <View style={styles.badge}>
-                        <Ionicons name="code" size={12} color="#667eea" />
-                        <Text style={styles.badgeText}>{course.language}</Text>
-                      </View>
-                    )}
-                    {course.premium && (
-                      <View style={[styles.badge, styles.premiumBadge]}>
-                        <Ionicons name="star" size={12} color="#ffd700" />
-                        <Text style={styles.badgeText}>Premium</Text>
+          courses.map((course) => {
+            const progress = courseProgress[course.id];
+            const courseTasks = tasks[course.id] || [];
+            const completedTasks = courseTasks.filter(task => task.completed).length;
+            
+            return (
+              <View key={course.id} style={styles.courseCard}>
+                <TouchableOpacity
+                  style={styles.courseHeader}
+                  onPress={() => toggleCourse(course.id)}
+                >
+                  <View style={styles.courseInfo}>
+                    <View style={styles.courseTitleRow}>
+                      <Text style={styles.courseTitle}>{course.title}</Text>
+                      {progress?.completed && (
+                        <Ionicons name="checkmark-circle" size={20} color="#43e97b" />
+                      )}
+                    </View>
+                    <Text style={styles.courseDescription}>{course.description}</Text>
+                    <View style={styles.badges}>
+                      {course.isProgramming && (
+                        <View style={styles.badge}>
+                          <Ionicons name="code" size={12} color="#667eea" />
+                          <Text style={styles.badgeText}>{course.language}</Text>
+                        </View>
+                      )}
+                      {course.premium && (
+                        <View style={[styles.badge, styles.premiumBadge]}>
+                          <Ionicons name="star" size={12} color="#ffd700" />
+                          <Text style={styles.badgeText}>Premium</Text>
+                        </View>
+                      )}
+                      {progress?.completed && (
+                        <View style={[styles.badge, styles.completedBadge]}>
+                          <Ionicons name="trophy" size={12} color="#43e97b" />
+                          <Text style={styles.badgeText}>Completed</Text>
+                        </View>
+                      )}
+                    </View>
+                    
+                    {/* Progress Bar */}
+                    {progress && courseTasks.length > 0 && (
+                      <View style={styles.progressContainer}>
+                        <View style={styles.progressInfo}>
+                          <Text style={styles.progressText}>
+                            {progress.tasksCompleted}/{progress.totalTasks} tasks
+                          </Text>
+                          <Text style={styles.progressPercentage}>{progress.progress}%</Text>
+                        </View>
+                        <View style={styles.progressBar}>
+                          <View 
+                            style={[
+                              styles.progressFill, 
+                              { width: `${progress.progress}%` }
+                            ]} 
+                          />
+                        </View>
                       </View>
                     )}
                   </View>
-                </View>
-                <Ionicons
-                  name={expandedCourse === course.id ? 'chevron-up' : 'chevron-down'}
-                  size={24}
-                  color="#999"
-                />
-              </TouchableOpacity>
+                  <View style={styles.courseActions}>
+                    <TouchableOpacity 
+                      style={styles.viewCourseButton}
+                      onPress={() => router.push(`/courses/${course.id}`)}
+                    >
+                      <Ionicons name="eye" size={20} color="#667eea" />
+                    </TouchableOpacity>
+                    <Ionicons
+                      name={expandedCourse === course.id ? 'chevron-up' : 'chevron-down'}
+                      size={24}
+                      color="#999"
+                    />
+                  </View>
+                </TouchableOpacity>
 
               {expandedCourse === course.id && (
                 <View style={styles.tasksContainer}>
@@ -154,8 +232,9 @@ export default function MyCourses() {
                   )}
                 </View>
               )}
-            </View>
-          ))
+              </View>
+            );
+          })
         )}
       </ScrollView>
     </LinearGradient>
@@ -293,5 +372,66 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     padding: 20,
+  },
+  courseTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  completedBadge: {
+    backgroundColor: 'rgba(67, 233, 123, 0.2)',
+  },
+  progressContainer: {
+    marginTop: 10,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#999',
+  },
+  progressPercentage: {
+    fontSize: 12,
+    color: '#43e97b',
+    fontWeight: 'bold',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#43e97b',
+    borderRadius: 2,
+  },
+  courseActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  viewCourseButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerLogo: {
+    width: 50,
+    height: 50,
+    marginRight: 15,
+  },
+  headerText: {
+    flex: 1,
   },
 });

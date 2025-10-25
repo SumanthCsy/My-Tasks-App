@@ -6,28 +6,41 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Alert,
+  BackHandler,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import PermissionsManager from '../../utils/PermissionsManager';
+import { useDialog } from '../../utils/DialogManager';
 
 export default function UserProfile() {
   const { userData, logout } = useAuth();
   const router = useRouter();
+  const { showEditProfileDialog, showChangePasswordDialog, showNotificationDialog, showHelpSupportDialog, showLogoutConfirmationDialog } = useDialog();
+  
+  // Handle back button press
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only add BackHandler event listener on native platforms
+      if (Platform.OS !== 'web') {
+        BackHandler.addEventListener('hardwareBackPress', () => false);
+        return () => {
+          BackHandler.removeEventListener('hardwareBackPress', () => false);
+        };
+      }
+      return undefined;
+    }, [])
+  );
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        onPress: async () => {
-          await logout();
-          router.replace('/auth/login');
-        },
-      },
-    ]);
+    showLogoutConfirmationDialog(async () => {
+      await logout();
+      router.replace('/auth/login');
+    });
   };
 
   return (
@@ -67,7 +80,15 @@ export default function UserProfile() {
         </View>
 
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              showEditProfileDialog(userData, () => {
+                // Refresh the page or update the UI after successful profile update
+                router.replace('/user/profile');
+              });
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="person-outline" size={24} color="#667eea" />
               <Text style={styles.menuItemText}>Edit Profile</Text>
@@ -75,7 +96,12 @@ export default function UserProfile() {
             <Ionicons name="chevron-forward" size={24} color="#999" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              showChangePasswordDialog();
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="lock-closed-outline" size={24} color="#667eea" />
               <Text style={styles.menuItemText}>Change Password</Text>
@@ -83,7 +109,18 @@ export default function UserProfile() {
             <Ionicons name="chevron-forward" size={24} color="#999" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              PermissionsManager.requestNotificationPermissions().then(granted => {
+                if (granted) {
+                  showNotificationDialog('Notifications', 'Notification permissions granted. You will receive notifications for important updates.');
+                } else {
+                  showNotificationDialog('Notifications', 'Please enable notifications in your device settings to receive important updates.');
+                }
+              });
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="notifications-outline" size={24} color="#667eea" />
               <Text style={styles.menuItemText}>Notifications</Text>
@@ -91,7 +128,12 @@ export default function UserProfile() {
             <Ionicons name="chevron-forward" size={24} color="#999" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              showHelpSupportDialog('Contact us at support@mytasks.com for any assistance.');
+            }}
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="help-circle-outline" size={24} color="#667eea" />
               <Text style={styles.menuItemText}>Help & Support</Text>

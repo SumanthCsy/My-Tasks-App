@@ -7,9 +7,10 @@ import {
   User,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SoundManager from '../utils/SoundManager';
 
 interface UserData {
   uid: string;
@@ -40,6 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Initialize sound manager
+    SoundManager.init();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
@@ -57,59 +60,94 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Check if it's admin trying to login for first time
-    if (email === 'admin@mytasks.com' && password === 'mytasks@admin') {
-      try {
-        // Try to create admin account
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        
-        await updateProfile(userCredential.user, {
-          displayName: 'Sumanth Csy'
-        });
+    try {
+      // Check if it's admin trying to login
+      if (email === 'admin@mytasks.com' && password === 'mytasks@admin') {
+        try {
+          // Try to create admin account first
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          
+          await updateProfile(userCredential.user, {
+            displayName: 'Sumanth Csy'
+          });
 
-        const adminData: UserData = {
-          uid: userCredential.user.uid,
-          email: 'admin@mytasks.com',
-          name: 'Sumanth Csy',
-          role: 'admin',
-          isBlocked: false,
-          premiumAccess: true,
-        };
+          const adminData: UserData = {
+            uid: userCredential.user.uid,
+            email: 'admin@mytasks.com',
+            name: 'Sumanth Csy',
+            role: 'admin',
+            isBlocked: false,
+            premiumAccess: true,
+          };
 
-        await setDoc(doc(db, 'users', userCredential.user.uid), adminData);
-        setUserData(adminData);
-        return;
-      } catch (createError: any) {
-        // If account already exists, continue with normal login
-        if (createError.code !== 'auth/email-already-in-use') {
-          throw createError;
+          await setDoc(doc(db, 'users', userCredential.user.uid), adminData);
+          setUser(userCredential.user);
+          setUserData(adminData);
+          await SoundManager.playLoginSound();
+          return;
+        } catch (createError: any) {
+          // If account already exists, continue with normal login
+          if (createError.code !== 'auth/email-already-in-use') {
+            throw createError;
+          }
         }
       }
-    }
 
-    // Normal login
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-    
-    if (userDoc.exists()) {
-      const data = userDoc.data() as UserData;
-      if (data.isBlocked) {
-        await signOut(auth);
-        throw new Error('Your account has been blocked. Please contact admin.');
+      // Normal login (including admin if account exists)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data() as UserData;
+        if (data.isBlocked) {
+          await signOut(auth);
+          throw new Error('Your account has been blocked. Please contact admin.');
+        }
+        setUser(userCredential.user);
+        setUserData(data);
+        await AsyncStorage.setItem('user', JSON.stringify(userCredential.user));
+        await AsyncStorage.setItem('userData', JSON.stringify(data));
+        await SoundManager.playLoginSound();
+        
+        // Notify admin about new user login (only for regular users)
+        if (data.role === 'user') {
+          // Find admin user by role instead of hardcoded ID
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          const adminUser = usersSnapshot.docs.find(doc => doc.data().role === 'admin');
+          
+          if (adminUser) {
+            await SoundManager.sendNotification(
+              'New User Login',
+              `${data.name} has just logged in`,
+              { type: 'user_login', userId: data.uid }
+            );
+          }
+        }
+      } else {
+        // If user document doesn't exist, create it
+        const userData: UserData = {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email || '',
+          name: userCredential.user.displayName || 'User',
+          role: 'user',
+          isBlocked: false,
+          premiumAccess: false,
+        };
+        await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+        setUser(userCredential.user);
+        setUserData(userData);
+        await AsyncStorage.setItem('user', JSON.stringify(userCredential.user));
+        await AsyncStorage.setItem('userData', JSON.stringify(userData));
+        await SoundManager.playLoginSound();
+        
+
       }
-      setUserData(data);
-    } else {
-      // If user document doesn't exist, create it
-      const userData: UserData = {
-        uid: userCredential.user.uid,
-        email: userCredential.user.email || '',
-        name: userCredential.user.displayName || 'User',
-        role: 'user',
-        isBlocked: false,
-        premiumAccess: false,
-      };
-      await setDoc(doc(db, 'users', userCredential.user.uid), userData);
-      setUserData(userData);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      if (error.code === 'auth/invalid-credential') {
+        throw new Error('Invalid email or password');
+      }
+      throw error;
     }
   };
 

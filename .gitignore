@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-AppData/
-*.tmp
-*.klog
-*.log
-node_modules/
-.expo/
-.yarn/
-.cache/
-.DS_Store
-*.apk
-*.aab
-dist/
-build/
-android/
-ios/
-=======
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # IDE and editors
@@ -95,4 +78,3 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
->>>>>>> 9fc0c7a593de0772901dab17d955ea2ae1b4fade

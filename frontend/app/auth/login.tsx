@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,27 +18,41 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import { useDialog } from '../../utils/DialogManager';
+import { useBackHandler } from '../../utils/useBackHandler';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
+  const { showLoginSuccessDialog, showErrorDialog } = useDialog();
+
+  // Handle back button - go to home screen
+  useBackHandler({
+    onBack: () => {
+      router.push('/');
+      return true;
+    }
+  });
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showErrorDialog('Validation Error', 'Please enter both email and password.');
       return;
     }
 
     setLoading(true);
     try {
       await login(email, password);
+      // Show success dialog
+      showLoginSuccessDialog();
       // Navigation is handled by the auth context and index.tsx
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert('Login Failed', error.message || 'Invalid credentials. Please check your email and password.');
+      showErrorDialog('Login Failed', error.message || 'Invalid credentials. Please check your email and password.');
     } finally {
       setLoading(false);
     }
@@ -45,19 +60,19 @@ export default function Login() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      Alert.alert('Email Required', 'Please enter your email address first');
+      showErrorDialog('Email Required', 'Please enter your email address first');
       return;
     }
 
     try {
       await sendPasswordResetEmail(auth, email);
-      Alert.alert(
+      showErrorDialog(
         'Password Reset Email Sent',
         'Please check your email for password reset instructions.'
       );
     } catch (error: any) {
       console.error('Password reset error:', error);
-      Alert.alert('Error', error.message || 'Failed to send password reset email');
+      showErrorDialog('Error', error.message || 'Failed to send password reset email');
     }
   };
 
@@ -71,14 +86,18 @@ export default function Login() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/')}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Ionicons name="checkmark-circle" size={80} color="#fff" />
+            <Image 
+              source={require('../../public/taskslogo.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Login to continue your learning</Text>
+            <Text style={styles.subtitle}>Login to continue</Text>
           </View>
 
           <View style={styles.formContainer}>
@@ -103,8 +122,11 @@ export default function Login() {
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.passwordToggle}>
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={24} color="#999" />
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordButton}>
@@ -137,11 +159,7 @@ export default function Login() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.adminHint}>
-              <Text style={styles.adminHintText}>Admin credentials:</Text>
-              <Text style={styles.adminCredentials}>Email: admin@mytasks.com</Text>
-              <Text style={styles.adminCredentials}>Password: mytasks@admin</Text>
-            </View>
+            {/* Admin credentials removed for security */}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -260,5 +278,13 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 12,
     marginTop: 4,
+  },
+  passwordToggle: {
+    padding: 10,
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 20,
   },
 });
