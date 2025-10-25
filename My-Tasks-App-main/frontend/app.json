@@ -1,67 +1,82 @@
 {
-    "expo": {
-        "name": "My Task App",
-        "slug": "my-task-app",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "icon": "./public/taskslogo.png",
-        "scheme": "mytaskapp",
-        "userInterfaceStyle": "automatic",
-        "newArchEnabled": true,
-        "ios": {
-            "supportsTablet": true,
-            "infoPlist": {
-                "NSCameraUsageDescription": "This app uses the camera to take profile pictures and upload course materials.",
-                "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images for your profile and courses.",
-                "NSMicrophoneUsageDescription": "This app uses the microphone for recording audio notes."
-            }
-        },
-        "android": {
-            "adaptiveIcon": {
-                "foregroundImage": "./public/taskslogo.png",
-                "backgroundColor": "#000"
-            },
-            "edgeToEdgeEnabled": true,
-            "package": "com.mytaskapp.app",
-            "permissions": [
-                "CAMERA",
-                "READ_EXTERNAL_STORAGE",
-                "WRITE_EXTERNAL_STORAGE",
-                "NOTIFICATIONS"
-            ]
-        },
-        "web": {
-            "bundler": "metro",
-            "output": "static",
-            "favicon": "./public/taskslogo.png"
-        },
-        "plugins": [
-            "expo-router", [
-                "expo-splash-screen",
-                {
-                    "image": "./public/taskslogo.png",
-                    "imageWidth": 200,
-                    "resizeMode": "contain",
-                    "backgroundColor": "#000"
-                }
-            ],
-            [
-                "expo-notifications",
-                {
-                    "icon": "./public/taskslogo.png",
-                    "color": "#ffffff"
-                }
-            ],
-            [
-                "expo-camera",
-                {
-                    "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
-                }
-            ],
-            "expo-media-library"
-        ],
-        "experiments": {
-            "typedRoutes": true
+  "expo": {
+    "name": "My Task App",
+    "slug": "my-task-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/taskslogo.png",
+    "scheme": "mytaskapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take profile pictures and upload course materials.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images for your profile and courses.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for recording audio notes."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./public/taskslogo.png",
+        "backgroundColor": "#000"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.mytaskapp.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./public/taskslogo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./public/taskslogo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#000"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./public/taskslogo.png",
+          "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }
+      ],
+      "expo-media-library"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "477eca08-ac51-48b6-a9ff-12836e7b62b1"
+      }
     }
+  }
 }
